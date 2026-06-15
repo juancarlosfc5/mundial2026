@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Polla Mundial 2026</title>
+<style>:root { color-scheme: light; }</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --red: #C8102E; --blue: #002868; --gold: #C9973B;
+  --teal: #007B6E; --bg: #F2F4F8; --white: #FFFFFF;
+  --text: #1A1A2E; --muted: #6B7280; --border: #E0E4EC;
+}
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding-bottom: 40px; }
+
+/* ── Header ── */
+.header { background: linear-gradient(135deg, var(--red) 0%, #7B0A1E 40%, var(--blue) 100%); padding: 18px 24px; display: flex; align-items: center; gap: 14px; box-shadow: 0 3px 14px rgba(0,0,0,0.25); position: relative; overflow: hidden; }
+.header::after { content:''; position:absolute; inset:0; background:repeating-linear-gradient(45deg,transparent,transparent 18px,rgba(255,255,255,0.03) 18px,rgba(255,255,255,0.03) 36px); }
+.header-icon { font-size: 2.2rem; z-index:1; }
+.header-info { z-index:1; flex:1; }
+.header-title { font-size: 1.35rem; font-weight: 700; color: #fff; }
+.header-sub { font-size: 0.75rem; color: rgba(255,255,255,0.75); margin-top: 2px; }
+.header-right { z-index:1; text-align:right; }
+.update-time { font-size: 0.7rem; color: rgba(255,255,255,0.65); margin-bottom: 6px; }
+.refresh-btn { background:rgba(255,255,255,0.18); border:1px solid rgba(255,255,255,0.35); color:#fff; padding:5px 14px; border-radius:20px; cursor:pointer; font-size:0.78rem; font-family:inherit; transition:background 0.2s; }
+.refresh-btn:hover { background:rgba(255,255,255,0.3); }
+.refresh-btn:disabled { opacity:0.5; cursor:default; }
+
+/* ── Tabs ── */
+.tabs-wrapper { padding: 20px 24px 0; display: flex; gap: 4px; }
+.tab { display:flex; align-items:center; gap:8px; padding:10px 20px; border-radius:10px 10px 0 0; cursor:pointer; font-size:0.82rem; font-weight:600; background:var(--white); border:1px solid var(--border); border-bottom:none; color:var(--muted); transition:all 0.2s; }
+.tab.active-base   { color:var(--gold); border-top:3px solid var(--gold); }
+.tab.active-conservadora { color:var(--teal); border-top:3px solid var(--teal); }
+.tab.active-riesgo { color:var(--red); border-top:3px solid var(--red); }
+.tab-pts { font-size:0.7rem; font-weight:700; padding:2px 8px; border-radius:10px; background:var(--bg); color:var(--muted); }
+.tab.active-base .tab-pts { background:#FDF4E3; color:var(--gold); }
+.tab.active-conservadora .tab-pts { background:#E6F4F2; color:var(--teal); }
+.tab.active-riesgo .tab-pts { background:#FDEDF0; color:var(--red); }
+
+/* ── Panel ── */
+.panel { display:none; margin:0 24px 24px; background:var(--white); border:1px solid var(--border); border-radius:0 12px 12px 12px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); }
+.panel.active { display:block; }
+
+/* ── 2-column layout: cards left · chart right ── */
+.panel-layout { display:grid; grid-template-columns:1fr 1.65fr; gap:16px; margin-bottom:20px; align-items:stretch; }
+.panel-left { display:flex; flex-direction:column; gap:16px; }
+.panel-right { display:flex; flex-direction:column; }
+
+/* ── Stat cards ── */
+.stat-card { background:var(--bg); border-radius:12px; padding:18px 20px; border-left:4px solid transparent; }
+.stat-card.card-pts { border-left-color:var(--gold); }
+.stat-card.card-pct { border-left-color:#1D6EA3; }
+.stat-label { font-size:0.7rem; font-weight:600; letter-spacing:0.5px; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+.stat-value { font-size:2rem; font-weight:800; line-height:1; }
+.stat-value .unit { font-size:0.95rem; font-weight:400; color:var(--muted); }
+.stat-sub { font-size:0.72rem; color:var(--muted); margin-top:6px; }
+.val-gold { color:#7A5C00; }
+.val-teal { color:var(--teal); }
+.val-red  { color:var(--red); }
+.val-blue { color:#1D6EA3; }
+
+/* ── Chart card ── */
+.chart-card { background:var(--bg); border-radius:12px; padding:18px 20px; }
+.panel-right .chart-card { flex:1; display:flex; flex-direction:column; }
+.chart-card-title { font-size:0.72rem; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); margin-bottom:14px; }
+.chart-wrap { position:relative; }
+.panel-right .chart-wrap { flex:1; min-height:190px; }
+.no-data { text-align:center; padding:50px 20px; color:var(--muted); font-size:0.85rem; }
+.panel-right .no-data { flex:1; display:flex; align-items:center; justify-content:center; padding:20px; }
+
+/* ── Table ── */
+.table-card { background:var(--bg); border-radius:12px; overflow:hidden; }
+.table-card-title { font-size:0.72rem; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); padding:14px 20px; background:var(--white); border-bottom:1px solid var(--border); }
+table { width:100%; border-collapse:collapse; font-size:0.8rem; background:var(--white); }
+th { padding:9px 14px; text-align:left; font-size:0.68rem; font-weight:600; text-transform:uppercase; letter-spacing:0.4px; color:var(--muted); background:#F8F9FB; border-bottom:1px solid var(--border); }
+td { padding:9px 14px; border-bottom:1px solid var(--border); }
+tr:last-child td { border-bottom:none; }
+tr:nth-child(even) td { background:#FAFBFC; }
+.grp { display:inline-block; background:var(--blue); color:#fff; border-radius:4px; font-size:0.65rem; font-weight:700; padding:1px 6px; }
+.score { font-family:'Courier New',monospace; font-weight:700; font-size:0.88rem; }
+.score-pred { color:var(--muted); }
+.badge { display:inline-flex; align-items:center; gap:3px; font-size:0.7rem; font-weight:700; padding:2px 8px; border-radius:8px; }
+.badge-5 { background:#FDF4E3; color:#8B6900; border:1px solid #F0CC80; }
+.badge-2 { background:#E6F4F2; color:#0A6659; border:1px solid #A0DCCC; }
+.badge-0 { background:#FDEDF0; color:#A3001A; border:1px solid #FABBC5; }
+.badge-p { background:#F0F2F5; color:var(--muted); border:1px solid var(--border); }
+
+/* ── Toast ── */
+.toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#1A1A2E; color:#fff; padding:10px 20px; border-radius:20px; font-size:0.8rem; opacity:0; transition:opacity 0.3s; pointer-events:none; z-index:99; white-space:nowrap; }
+.toast.show { opacity:1; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-icon">⚽</div>
+  <div class="header-info">
+    <div class="header-title">🏆 Polla Mundial 2026</div>
+    <div class="header-sub">Resultados en vivo · Fase de Grupos</div>
+  </div>
+  <div class="header-right">
+    <div class="update-time" id="update-time">Cargando...</div>
+    <button class="refresh-btn" id="refresh-btn" onclick="triggerUpdate()">↻ Actualizar</button>
+  </div>
+</div>
+
+<div class="tabs-wrapper">
+  <div class="tab active-base" id="tab-base" onclick="switchTab('base')">📊 Base <span class="tab-pts" id="pts-base">—</span></div>
+  <div class="tab" id="tab-conservadora" onclick="switchTab('conservadora')">🛡️ Conservadora <span class="tab-pts" id="pts-conservadora">—</span></div>
+  <div class="tab" id="tab-riesgo" onclick="switchTab('riesgo')">🎯 Riesgo <span class="tab-pts" id="pts-riesgo">—</span></div>
+</div>
+
+<div class="panel tab-base active" id="panel-base"><div id="body-base"></div></div>
+<div class="panel tab-conservadora"  id="panel-conservadora"><div id="body-conservadora"></div></div>
+<div class="panel tab-riesgo"        id="panel-riesgo"><div id="body-riesgo"></div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  PREDICTIONS DATA
+// ═══════════════════════════════════════════════
+const PREDS = {
+  base: [
+    {g:'A',f:'2026-06-11',p:1, t1:'México',               t2:'Sudáfrica',          g1:2,g2:0},
+    {g:'A',f:'2026-06-11',p:2, t1:'Corea del Sur',        t2:'República Checa',    g1:1,g2:1},
+    {g:'A',f:'2026-06-18',p:25,t1:'República Checa',      t2:'Sudáfrica',          g1:2,g2:1},
+    {g:'A',f:'2026-06-18',p:28,t1:'México',               t2:'Corea del Sur',      g1:1,g2:1},
+    {g:'A',f:'2026-06-24',p:53,t1:'República Checa',      t2:'México',             g1:0,g2:1},
+    {g:'A',f:'2026-06-24',p:54,t1:'Sudáfrica',            t2:'Corea del Sur',      g1:1,g2:1},
+    {g:'B',f:'2026-06-12',p:3, t1:'Canadá',               t2:'Bosnia y Herzegovina',g1:1,g2:1},
+    {g:'B',f:'2026-06-13',p:8, t1:'Qatar',                t2:'Suiza',              g1:0,g2:2},
+    {g:'B',f:'2026-06-18',p:26,t1:'Suiza',                t2:'Bosnia y Herzegovina',g1:1,g2:0},
+    {g:'B',f:'2026-06-18',p:27,t1:'Canadá',               t2:'Qatar',              g1:2,g2:1},
+    {g:'B',f:'2026-06-24',p:51,t1:'Suiza',                t2:'Canadá',             g1:1,g2:1},
+    {g:'B',f:'2026-06-24',p:52,t1:'Bosnia y Herzegovina', t2:'Qatar',              g1:2,g2:1},
+    {g:'C',f:'2026-06-13',p:7, t1:'Brasil',               t2:'Marruecos',          g1:1,g2:1},
+    {g:'C',f:'2026-06-13',p:5, t1:'Haití',                t2:'Escocia',            g1:0,g2:1},
+    {g:'C',f:'2026-06-19',p:30,t1:'Escocia',              t2:'Marruecos',          g1:1,g2:1},
+    {g:'C',f:'2026-06-19',p:29,t1:'Brasil',               t2:'Haití',              g1:3,g2:0},
+    {g:'C',f:'2026-06-24',p:49,t1:'Escocia',              t2:'Brasil',             g1:0,g2:2},
+    {g:'C',f:'2026-06-24',p:50,t1:'Marruecos',            t2:'Haití',              g1:2,g2:0},
+    {g:'D',f:'2026-06-12',p:4, t1:'Estados Unidos',       t2:'Paraguay',           g1:2,g2:1},
+    {g:'D',f:'2026-06-13',p:6, t1:'Australia',            t2:'Turquía',            g1:1,g2:1},
+    {g:'D',f:'2026-06-19',p:32,t1:'Estados Unidos',       t2:'Australia',          g1:2,g2:1},
+    {g:'D',f:'2026-06-19',p:31,t1:'Turquía',              t2:'Paraguay',           g1:1,g2:0},
+    {g:'D',f:'2026-06-25',p:59,t1:'Turquía',              t2:'Estados Unidos',     g1:1,g2:1},
+    {g:'D',f:'2026-06-25',p:60,t1:'Paraguay',             t2:'Australia',          g1:1,g2:1},
+    {g:'E',f:'2026-06-14',p:10,t1:'Alemania',             t2:'Curazao',            g1:3,g2:0},
+    {g:'E',f:'2026-06-14',p:9, t1:'Costa de Marfil',      t2:'Ecuador',            g1:0,g2:1},
+    {g:'E',f:'2026-06-20',p:33,t1:'Alemania',             t2:'Costa de Marfil',   g1:2,g2:1},
+    {g:'E',f:'2026-06-20',p:34,t1:'Ecuador',              t2:'Curazao',            g1:2,g2:0},
+    {g:'E',f:'2026-06-25',p:55,t1:'Curazao',              t2:'Costa de Marfil',   g1:0,g2:1},
+    {g:'E',f:'2026-06-25',p:56,t1:'Ecuador',              t2:'Alemania',           g1:1,g2:1},
+    {g:'F',f:'2026-06-14',p:11,t1:'Países Bajos',         t2:'Japón',              g1:2,g2:1},
+    {g:'F',f:'2026-06-14',p:12,t1:'Suecia',               t2:'Túnez',              g1:1,g2:0},
+    {g:'F',f:'2026-06-20',p:35,t1:'Países Bajos',         t2:'Suecia',             g1:1,g2:1},
+    {g:'F',f:'2026-06-20',p:36,t1:'Túnez',                t2:'Japón',              g1:0,g2:1},
+    {g:'F',f:'2026-06-25',p:57,t1:'Japón',                t2:'Suecia',             g1:1,g2:1},
+    {g:'F',f:'2026-06-25',p:58,t1:'Túnez',                t2:'Países Bajos',       g1:0,g2:2},
+    {g:'G',f:'2026-06-15',p:16,t1:'Bélgica',              t2:'Egipto',             g1:2,g2:1},
+    {g:'G',f:'2026-06-15',p:15,t1:'Irán',                 t2:'Nueva Zelanda',      g1:1,g2:0},
+    {g:'G',f:'2026-06-21',p:39,t1:'Bélgica',              t2:'Irán',               g1:1,g2:1},
+    {g:'G',f:'2026-06-21',p:40,t1:'Nueva Zelanda',        t2:'Egipto',             g1:0,g2:1},
+    {g:'G',f:'2026-06-26',p:63,t1:'Egipto',               t2:'Irán',               g1:1,g2:1},
+    {g:'G',f:'2026-06-26',p:64,t1:'Nueva Zelanda',        t2:'Bélgica',            g1:0,g2:2},
+    {g:'H',f:'2026-06-15',p:14,t1:'España',               t2:'Cabo Verde',         g1:2,g2:0},
+    {g:'H',f:'2026-06-15',p:13,t1:'Arabia Saudita',       t2:'Uruguay',            g1:0,g2:2},
+    {g:'H',f:'2026-06-21',p:38,t1:'España',               t2:'Arabia Saudita',     g1:2,g2:0},
+    {g:'H',f:'2026-06-21',p:37,t1:'Uruguay',              t2:'Cabo Verde',         g1:2,g2:0},
+    {g:'H',f:'2026-06-26',p:65,t1:'Cabo Verde',           t2:'Arabia Saudita',     g1:1,g2:1},
+    {g:'H',f:'2026-06-26',p:66,t1:'Uruguay',              t2:'España',             g1:1,g2:1},
+    {g:'I',f:'2026-06-16',p:17,t1:'Francia',              t2:'Senegal',            g1:2,g2:1},
+    {g:'I',f:'2026-06-16',p:18,t1:'Irak',                 t2:'Noruega',            g1:0,g2:2},
+    {g:'I',f:'2026-06-22',p:42,t1:'Francia',              t2:'Irak',               g1:3,g2:0},
+    {g:'I',f:'2026-06-22',p:41,t1:'Noruega',              t2:'Senegal',            g1:2,g2:1},
+    {g:'I',f:'2026-06-26',p:61,t1:'Noruega',              t2:'Francia',            g1:1,g2:2},
+    {g:'I',f:'2026-06-26',p:62,t1:'Senegal',              t2:'Irak',               g1:2,g2:0},
+    {g:'J',f:'2026-06-16',p:19,t1:'Argentina',            t2:'Argelia',            g1:2,g2:0},
+    {g:'J',f:'2026-06-16',p:20,t1:'Austria',              t2:'Jordania',           g1:2,g2:0},
+    {g:'J',f:'2026-06-22',p:43,t1:'Argentina',            t2:'Austria',            g1:2,g2:1},
+    {g:'J',f:'2026-06-22',p:44,t1:'Jordania',             t2:'Argelia',            g1:0,g2:1},
+    {g:'J',f:'2026-06-27',p:69,t1:'Argelia',              t2:'Austria',            g1:1,g2:1},
+    {g:'J',f:'2026-06-27',p:70,t1:'Jordania',             t2:'Argentina',          g1:0,g2:3},
+    {g:'K',f:'2026-06-17',p:23,t1:'Portugal',             t2:'RD Congo',           g1:3,g2:0},
+    {g:'K',f:'2026-06-17',p:24,t1:'Uzbekistán',           t2:'Colombia',           g1:0,g2:2},
+    {g:'K',f:'2026-06-23',p:47,t1:'Portugal',             t2:'Uzbekistán',         g1:2,g2:0},
+    {g:'K',f:'2026-06-23',p:48,t1:'Colombia',             t2:'RD Congo',           g1:2,g2:1},
+    {g:'K',f:'2026-06-27',p:71,t1:'Colombia',             t2:'Portugal',           g1:1,g2:1},
+    {g:'K',f:'2026-06-27',p:72,t1:'RD Congo',             t2:'Uzbekistán',         g1:1,g2:1},
+    {g:'L',f:'2026-06-17',p:22,t1:'Inglaterra',           t2:'Croacia',            g1:2,g2:1},
+    {g:'L',f:'2026-06-17',p:21,t1:'Ghana',                t2:'Panamá',             g1:2,g2:1},
+    {g:'L',f:'2026-06-23',p:45,t1:'Inglaterra',           t2:'Ghana',              g1:2,g2:0},
+    {g:'L',f:'2026-06-23',p:46,t1:'Panamá',              t2:'Croacia',            g1:0,g2:2},
+    {g:'L',f:'2026-06-27',p:67,t1:'Panamá',              t2:'Inglaterra',         g1:0,g2:3},
+    {g:'L',f:'2026-06-27',p:68,t1:'Croacia',              t2:'Ghana',              g1:1,g2:1}
+  ],
+  conservadora: [
+    {g:'A',f:'2026-06-11',p:1, t1:'México',               t2:'Sudáfrica',          g1:1,g2:0},
+    {g:'A',f:'2026-06-11',p:2, t1:'Corea del Sur',        t2:'República Checa',    g1:1,g2:0},
+    {g:'A',f:'2026-06-18',p:25,t1:'República Checa',      t2:'Sudáfrica',          g1:1,g2:0},
+    {g:'A',f:'2026-06-18',p:28,t1:'México',               t2:'Corea del Sur',      g1:1,g2:0},
+    {g:'A',f:'2026-06-24',p:53,t1:'República Checa',      t2:'México',             g1:1,g2:1},
+    {g:'A',f:'2026-06-24',p:54,t1:'Sudáfrica',            t2:'Corea del Sur',      g1:0,g2:1},
+    {g:'B',f:'2026-06-12',p:3, t1:'Canadá',               t2:'Bosnia y Herzegovina',g1:1,g2:0},
+    {g:'B',f:'2026-06-13',p:8, t1:'Qatar',                t2:'Suiza',              g1:0,g2:1},
+    {g:'B',f:'2026-06-18',p:26,t1:'Suiza',                t2:'Bosnia y Herzegovina',g1:1,g2:1},
+    {g:'B',f:'2026-06-18',p:27,t1:'Canadá',               t2:'Qatar',              g1:1,g2:0},
+    {g:'B',f:'2026-06-24',p:51,t1:'Suiza',                t2:'Canadá',             g1:0,g2:0},
+    {g:'B',f:'2026-06-24',p:52,t1:'Bosnia y Herzegovina', t2:'Qatar',              g1:1,g2:0},
+    {g:'C',f:'2026-06-13',p:7, t1:'Brasil',               t2:'Marruecos',          g1:1,g2:0},
+    {g:'C',f:'2026-06-13',p:5, t1:'Haití',                t2:'Escocia',            g1:0,g2:0},
+    {g:'C',f:'2026-06-19',p:30,t1:'Escocia',              t2:'Marruecos',          g1:0,g2:1},
+    {g:'C',f:'2026-06-19',p:29,t1:'Brasil',               t2:'Haití',              g1:2,g2:0},
+    {g:'C',f:'2026-06-24',p:49,t1:'Escocia',              t2:'Brasil',             g1:0,g2:1},
+    {g:'C',f:'2026-06-24',p:50,t1:'Marruecos',            t2:'Haití',              g1:1,g2:0},
+    {g:'D',f:'2026-06-12',p:4, t1:'Estados Unidos',       t2:'Paraguay',           g1:1,g2:0},
+    {g:'D',f:'2026-06-13',p:6, t1:'Australia',            t2:'Turquía',            g1:0,g2:1},
+    {g:'D',f:'2026-06-19',p:32,t1:'Estados Unidos',       t2:'Australia',          g1:1,g2:1},
+    {g:'D',f:'2026-06-19',p:31,t1:'Turquía',              t2:'Paraguay',           g1:1,g2:1},
+    {g:'D',f:'2026-06-25',p:59,t1:'Turquía',              t2:'Estados Unidos',     g1:0,g2:1},
+    {g:'D',f:'2026-06-25',p:60,t1:'Paraguay',             t2:'Australia',          g1:0,g2:0},
+    {g:'E',f:'2026-06-14',p:10,t1:'Alemania',             t2:'Curazao',            g1:2,g2:0},
+    {g:'E',f:'2026-06-14',p:9, t1:'Costa de Marfil',      t2:'Ecuador',            g1:0,g2:0},
+    {g:'E',f:'2026-06-20',p:33,t1:'Alemania',             t2:'Costa de Marfil',   g1:1,g2:0},
+    {g:'E',f:'2026-06-20',p:34,t1:'Ecuador',              t2:'Curazao',            g1:1,g2:0},
+    {g:'E',f:'2026-06-25',p:55,t1:'Curazao',              t2:'Costa de Marfil',   g1:0,g2:0},
+    {g:'E',f:'2026-06-25',p:56,t1:'Ecuador',              t2:'Alemania',           g1:0,g2:1},
+    {g:'F',f:'2026-06-14',p:11,t1:'Países Bajos',         t2:'Japón',              g1:1,g2:1},
+    {g:'F',f:'2026-06-14',p:12,t1:'Suecia',               t2:'Túnez',              g1:1,g2:0},
+    {g:'F',f:'2026-06-20',p:35,t1:'Países Bajos',         t2:'Suecia',             g1:1,g2:0},
+    {g:'F',f:'2026-06-20',p:36,t1:'Túnez',                t2:'Japón',              g1:0,g2:0},
+    {g:'F',f:'2026-06-25',p:57,t1:'Japón',                t2:'Suecia',             g1:1,g2:0},
+    {g:'F',f:'2026-06-25',p:58,t1:'Túnez',                t2:'Países Bajos',       g1:0,g2:1},
+    {g:'G',f:'2026-06-15',p:16,t1:'Bélgica',              t2:'Egipto',             g1:1,g2:0},
+    {g:'G',f:'2026-06-15',p:15,t1:'Irán',                 t2:'Nueva Zelanda',      g1:1,g2:0},
+    {g:'G',f:'2026-06-21',p:39,t1:'Bélgica',              t2:'Irán',               g1:1,g2:0},
+    {g:'G',f:'2026-06-21',p:40,t1:'Nueva Zelanda',        t2:'Egipto',             g1:0,g2:0},
+    {g:'G',f:'2026-06-26',p:63,t1:'Egipto',               t2:'Irán',               g1:0,g2:0},
+    {g:'G',f:'2026-06-26',p:64,t1:'Nueva Zelanda',        t2:'Bélgica',            g1:0,g2:1},
+    {g:'H',f:'2026-06-15',p:14,t1:'España',               t2:'Cabo Verde',         g1:1,g2:0},
+    {g:'H',f:'2026-06-15',p:13,t1:'Arabia Saudita',       t2:'Uruguay',            g1:0,g2:1},
+    {g:'H',f:'2026-06-21',p:38,t1:'España',               t2:'Arabia Saudita',     g1:2,g2:0},
+    {g:'H',f:'2026-06-21',p:37,t1:'Uruguay',              t2:'Cabo Verde',         g1:1,g2:0},
+    {g:'H',f:'2026-06-26',p:65,t1:'Cabo Verde',           t2:'Arabia Saudita',     g1:1,g2:0},
+    {g:'H',f:'2026-06-26',p:66,t1:'Uruguay',              t2:'España',             g1:0,g2:1},
+    {g:'I',f:'2026-06-16',p:17,t1:'Francia',              t2:'Senegal',            g1:1,g2:0},
+    {g:'I',f:'2026-06-16',p:18,t1:'Irak',                 t2:'Noruega',            g1:0,g2:1},
+    {g:'I',f:'2026-06-22',p:42,t1:'Francia',              t2:'Irak',               g1:2,g2:0},
+    {g:'I',f:'2026-06-22',p:41,t1:'Noruega',              t2:'Senegal',            g1:1,g2:1},
+    {g:'I',f:'2026-06-26',p:61,t1:'Noruega',              t2:'Francia',            g1:1,g2:1},
+    {g:'I',f:'2026-06-26',p:62,t1:'Senegal',              t2:'Irak',               g1:1,g2:0},
+    {g:'J',f:'2026-06-16',p:19,t1:'Argentina',            t2:'Argelia',            g1:1,g2:0},
+    {g:'J',f:'2026-06-16',p:20,t1:'Austria',              t2:'Jordania',           g1:1,g2:0},
+    {g:'J',f:'2026-06-22',p:43,t1:'Argentina',            t2:'Austria',            g1:1,g2:1},
+    {g:'J',f:'2026-06-22',p:44,t1:'Jordania',             t2:'Argelia',            g1:0,g2:0},
+    {g:'J',f:'2026-06-27',p:69,t1:'Argelia',              t2:'Austria',            g1:0,g2:1},
+    {g:'J',f:'2026-06-27',p:70,t1:'Jordania',             t2:'Argentina',          g1:0,g2:2},
+    {g:'K',f:'2026-06-17',p:23,t1:'Portugal',             t2:'RD Congo',           g1:2,g2:0},
+    {g:'K',f:'2026-06-17',p:24,t1:'Uzbekistán',           t2:'Colombia',           g1:0,g2:1},
+    {g:'K',f:'2026-06-23',p:47,t1:'Portugal',             t2:'Uzbekistán',         g1:1,g2:0},
+    {g:'K',f:'2026-06-23',p:48,t1:'Colombia',             t2:'RD Congo',           g1:1,g2:0},
+    {g:'K',f:'2026-06-27',p:71,t1:'Colombia',             t2:'Portugal',           g1:1,g2:2},
+    {g:'K',f:'2026-06-27',p:72,t1:'RD Congo',             t2:'Uzbekistán',         g1:0,g2:0},
+    {g:'L',f:'2026-06-17',p:22,t1:'Inglaterra',           t2:'Croacia',            g1:1,g2:1},
+    {g:'L',f:'2026-06-17',p:21,t1:'Ghana',                t2:'Panamá',             g1:1,g2:0},
+    {g:'L',f:'2026-06-23',p:45,t1:'Inglaterra',           t2:'Ghana',              g1:1,g2:0},
+    {g:'L',f:'2026-06-23',p:46,t1:'Panamá',              t2:'Croacia',            g1:0,g2:1},
+    {g:'L',f:'2026-06-27',p:67,t1:'Panamá',              t2:'Inglaterra',         g1:0,g2:2},
+    {g:'L',f:'2026-06-27',p:68,t1:'Croacia',              t2:'Ghana',              g1:1,g2:0}
+  ],
+  riesgo: [
+    {g:'A',f:'2026-06-11',p:1, t1:'México',               t2:'Sudáfrica',          g1:1,g2:1},
+    {g:'A',f:'2026-06-11',p:2, t1:'Corea del Sur',        t2:'República Checa',    g1:0,g2:1},
+    {g:'A',f:'2026-06-18',p:25,t1:'República Checa',      t2:'Sudáfrica',          g1:1,g2:1},
+    {g:'A',f:'2026-06-18',p:28,t1:'México',               t2:'Corea del Sur',      g1:2,g2:1},
+    {g:'A',f:'2026-06-24',p:53,t1:'República Checa',      t2:'México',             g1:1,g2:2},
+    {g:'A',f:'2026-06-24',p:54,t1:'Sudáfrica',            t2:'Corea del Sur',      g1:0,g2:2},
+    {g:'B',f:'2026-06-12',p:3, t1:'Canadá',               t2:'Bosnia y Herzegovina',g1:2,g2:1},
+    {g:'B',f:'2026-06-13',p:8, t1:'Qatar',                t2:'Suiza',              g1:1,g2:1},
+    {g:'B',f:'2026-06-18',p:26,t1:'Suiza',                t2:'Bosnia y Herzegovina',g1:2,g2:0},
+    {g:'B',f:'2026-06-18',p:27,t1:'Canadá',               t2:'Qatar',              g1:1,g2:1},
+    {g:'B',f:'2026-06-24',p:51,t1:'Suiza',                t2:'Canadá',             g1:2,g2:1},
+    {g:'B',f:'2026-06-24',p:52,t1:'Bosnia y Herzegovina', t2:'Qatar',              g1:1,g2:2},
+    {g:'C',f:'2026-06-13',p:7, t1:'Brasil',               t2:'Marruecos',          g1:2,g2:2},
+    {g:'C',f:'2026-06-13',p:5, t1:'Haití',                t2:'Escocia',            g1:1,g2:2},
+    {g:'C',f:'2026-06-19',p:30,t1:'Escocia',              t2:'Marruecos',          g1:0,g2:2},
+    {g:'C',f:'2026-06-19',p:29,t1:'Brasil',               t2:'Haití',              g1:4,g2:0},
+    {g:'C',f:'2026-06-24',p:49,t1:'Escocia',              t2:'Brasil',             g1:1,g2:2},
+    {g:'C',f:'2026-06-24',p:50,t1:'Marruecos',            t2:'Haití',              g1:3,g2:0},
+    {g:'D',f:'2026-06-12',p:4, t1:'Estados Unidos',       t2:'Paraguay',           g1:2,g2:2},
+    {g:'D',f:'2026-06-13',p:6, t1:'Australia',            t2:'Turquía',            g1:0,g2:2},
+    {g:'D',f:'2026-06-19',p:32,t1:'Estados Unidos',       t2:'Australia',          g1:1,g2:2},
+    {g:'D',f:'2026-06-19',p:31,t1:'Turquía',              t2:'Paraguay',           g1:2,g2:1},
+    {g:'D',f:'2026-06-25',p:59,t1:'Turquía',              t2:'Estados Unidos',     g1:2,g2:2},
+    {g:'D',f:'2026-06-25',p:60,t1:'Paraguay',             t2:'Australia',          g1:2,g2:0},
+    {g:'E',f:'2026-06-14',p:10,t1:'Alemania',             t2:'Curazao',            g1:4,g2:1},
+    {g:'E',f:'2026-06-14',p:9, t1:'Costa de Marfil',      t2:'Ecuador',            g1:1,g2:2},
+    {g:'E',f:'2026-06-20',p:33,t1:'Alemania',             t2:'Costa de Marfil',   g1:1,g2:1},
+    {g:'E',f:'2026-06-20',p:34,t1:'Ecuador',              t2:'Curazao',            g1:3,g2:1},
+    {g:'E',f:'2026-06-25',p:55,t1:'Curazao',              t2:'Costa de Marfil',   g1:1,g2:2},
+    {g:'E',f:'2026-06-25',p:56,t1:'Ecuador',              t2:'Alemania',           g1:2,g2:1},
+    {g:'F',f:'2026-06-14',p:11,t1:'Países Bajos',         t2:'Japón',              g1:1,g2:2},
+    {g:'F',f:'2026-06-14',p:12,t1:'Suecia',               t2:'Túnez',              g1:2,g2:0},
+    {g:'F',f:'2026-06-20',p:35,t1:'Países Bajos',         t2:'Suecia',             g1:2,g2:0},
+    {g:'F',f:'2026-06-20',p:36,t1:'Túnez',                t2:'Japón',              g1:1,g2:2},
+    {g:'F',f:'2026-06-25',p:57,t1:'Japón',                t2:'Suecia',             g1:2,g2:1},
+    {g:'F',f:'2026-06-25',p:58,t1:'Túnez',                t2:'Países Bajos',       g1:1,g2:3},
+    {g:'G',f:'2026-06-15',p:16,t1:'Bélgica',              t2:'Egipto',             g1:1,g2:1},
+    {g:'G',f:'2026-06-15',p:15,t1:'Irán',                 t2:'Nueva Zelanda',      g1:2,g2:1},
+    {g:'G',f:'2026-06-21',p:39,t1:'Bélgica',              t2:'Irán',               g1:2,g2:0},
+    {g:'G',f:'2026-06-21',p:40,t1:'Nueva Zelanda',        t2:'Egipto',             g1:1,g2:1},
+    {g:'G',f:'2026-06-26',p:63,t1:'Egipto',               t2:'Irán',               g1:2,g2:1},
+    {g:'G',f:'2026-06-26',p:64,t1:'Nueva Zelanda',        t2:'Bélgica',            g1:1,g2:2},
+    {g:'H',f:'2026-06-15',p:14,t1:'España',               t2:'Cabo Verde',         g1:3,g2:0},
+    {g:'H',f:'2026-06-15',p:13,t1:'Arabia Saudita',       t2:'Uruguay',            g1:1,g2:3},
+    {g:'H',f:'2026-06-21',p:38,t1:'España',               t2:'Arabia Saudita',     g1:3,g2:0},
+    {g:'H',f:'2026-06-21',p:37,t1:'Uruguay',              t2:'Cabo Verde',         g1:1,g2:1},
+    {g:'H',f:'2026-06-26',p:65,t1:'Cabo Verde',           t2:'Arabia Saudita',     g1:2,g2:1},
+    {g:'H',f:'2026-06-26',p:66,t1:'Uruguay',              t2:'España',             g1:2,g2:2},
+    {g:'I',f:'2026-06-16',p:17,t1:'Francia',              t2:'Senegal',            g1:1,g2:1},
+    {g:'I',f:'2026-06-16',p:18,t1:'Irak',                 t2:'Noruega',            g1:1,g2:3},
+    {g:'I',f:'2026-06-22',p:42,t1:'Francia',              t2:'Irak',               g1:2,g2:1},
+    {g:'I',f:'2026-06-22',p:41,t1:'Noruega',              t2:'Senegal',            g1:3,g2:2},
+    {g:'I',f:'2026-06-26',p:61,t1:'Noruega',              t2:'Francia',            g1:2,g2:2},
+    {g:'I',f:'2026-06-26',p:62,t1:'Senegal',              t2:'Irak',               g1:3,g2:1},
+    {g:'J',f:'2026-06-16',p:19,t1:'Argentina',            t2:'Argelia',            g1:3,g2:1},
+    {g:'J',f:'2026-06-16',p:20,t1:'Austria',              t2:'Jordania',           g1:3,g2:0},
+    {g:'J',f:'2026-06-22',p:43,t1:'Argentina',            t2:'Austria',            g1:1,g2:2},
+    {g:'J',f:'2026-06-22',p:44,t1:'Jordania',             t2:'Argelia',            g1:1,g2:2},
+    {g:'J',f:'2026-06-27',p:69,t1:'Argelia',              t2:'Austria',            g1:2,g2:2},
+    {g:'J',f:'2026-06-27',p:70,t1:'Jordania',             t2:'Argentina',          g1:0,g2:4},
+    {g:'K',f:'2026-06-17',p:23,t1:'Portugal',             t2:'RD Congo',           g1:2,g2:1},
+    {g:'K',f:'2026-06-17',p:24,t1:'Uzbekistán',           t2:'Colombia',           g1:1,g2:1},
+    {g:'K',f:'2026-06-23',p:47,t1:'Portugal',             t2:'Uzbekistán',         g1:3,g2:1},
+    {g:'K',f:'2026-06-23',p:48,t1:'Colombia',             t2:'RD Congo',           g1:3,g2:0},
+    {g:'K',f:'2026-06-27',p:71,t1:'Colombia',             t2:'Portugal',           g1:2,g2:2},
+    {g:'K',f:'2026-06-27',p:72,t1:'RD Congo',             t2:'Uzbekistán',         g1:2,g2:1},
+    {g:'L',f:'2026-06-17',p:22,t1:'Inglaterra',           t2:'Croacia',            g1:3,g2:1},
+    {g:'L',f:'2026-06-17',p:21,t1:'Ghana',                t2:'Panamá',             g1:1,g2:1},
+    {g:'L',f:'2026-06-23',p:45,t1:'Inglaterra',           t2:'Ghana',              g1:3,g2:1},
+    {g:'L',f:'2026-06-23',p:46,t1:'Panamá',              t2:'Croacia',            g1:1,g2:2},
+    {g:'L',f:'2026-06-27',p:67,t1:'Panamá',              t2:'Inglaterra',         g1:1,g2:4},
+    {g:'L',f:'2026-06-27',p:68,t1:'Croacia',              t2:'Ghana',              g1:2,g2:1}
+  ]
+};
+
+// ═══════════════════════════════════════════════
+//  TEAM NAME MAP (English API names → Spanish)
+// ═══════════════════════════════════════════════
+const TEAM_MAP = {
+  'Mexico':'México','South Africa':'Sudáfrica',
+  'South Korea':'Corea del Sur','Korea Republic':'Corea del Sur','Republic of Korea':'Corea del Sur',
+  'Czech Republic':'República Checa','Czechia':'República Checa',
+  'Canada':'Canadá',
+  'Bosnia-Herzegovina':'Bosnia y Herzegovina','Bosnia Herzegovina':'Bosnia y Herzegovina',
+  'Bosnia and Herzegovina':'Bosnia y Herzegovina','Bosnia & Herzegovina':'Bosnia y Herzegovina',
+  'Germany':'Alemania','Curaçao':'Curazao','Curacao':'Curazao',
+  'Ivory Coast':'Costa de Marfil',"Côte d'Ivoire":'Costa de Marfil','Cote d\'Ivoire':'Costa de Marfil',
+  'Netherlands':'Países Bajos','Sweden':'Suecia','Tunisia':'Túnez',
+  'Japan':'Japón','Belgium':'Bélgica','Egypt':'Egipto','Iran':'Irán',
+  'New Zealand':'Nueva Zelanda','Spain':'España','Cabo Verde':'Cabo Verde','Cape Verde':'Cabo Verde',
+  'Saudi Arabia':'Arabia Saudita','France':'Francia','Iraq':'Irak',
+  'Norway':'Noruega','Algeria':'Argelia','Jordan':'Jordania',
+  'DR Congo':'RD Congo','Congo DR':'RD Congo','DRC':'RD Congo','Democratic Republic of Congo':'RD Congo',
+  'Uzbekistan':'Uzbekistán','England':'Inglaterra','Croatia':'Croacia',
+  'Haiti':'Haití','Scotland':'Escocia','Morocco':'Marruecos','Brazil':'Brasil',
+  'USA':'Estados Unidos','United States':'Estados Unidos',
+  'Paraguay':'Paraguay','Turkey':'Turquía','Qatar':'Qatar',
+  'Switzerland':'Suiza','Colombia':'Colombia','Argentina':'Argentina',
+  'Austria':'Austria','Portugal':'Portugal','Uruguay':'Uruguay',
+  'Ecuador':'Ecuador','Senegal':'Senegal','Ghana':'Ghana',
+  'Panama':'Panamá','Australia':'Australia'
+};
+
+function norm(name) { return TEAM_MAP[name] || name; }
+
+function getScore(p1, p2, r1, r2) {
+  if (p1 === r1 && p2 === r2) return 5;
+  if (Math.sign(p1 - p2) === Math.sign(r1 - r2)) return 2;
+  return 0;
+}
+
+// ═══════════════════════════════════════════════
+//  BASELINE RESULTS (embedded seed)
+// ═══════════════════════════════════════════════
+const RESULTS_SEED = [
+  {home:'Mexico',    away:'South Africa',       r1:2,r2:0,date:'2026-06-11'},
+  {home:'South Korea',away:'Czech Republic',    r1:2,r2:1,date:'2026-06-12'},
+  {home:'Canada',    away:'Bosnia-Herzegovina', r1:1,r2:1,date:'2026-06-12'},
+  {home:'USA',       away:'Paraguay',           r1:4,r2:1,date:'2026-06-13'},
+  {home:'Brazil',    away:'Morocco',            r1:1,r2:1,date:'2026-06-13'}
+];
+const SEED_TIMESTAMP = '2026-06-15 00:00';
+
+// Session state — seed + localStorage, grows with API fetches
+let liveResults = [];
+
+// ═══════════════════════════════════════════════
+//  LOCAL STORAGE
+// ═══════════════════════════════════════════════
+const LS_RESULTS   = 'polla_wc2026_results';
+const LS_TIMESTAMP = 'polla_wc2026_ts';
+
+function loadFromStorage() {
+  try {
+    const raw = localStorage.getItem(LS_RESULTS);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveToStorage(results, ts) {
+  try {
+    localStorage.setItem(LS_RESULTS, JSON.stringify(results));
+    if (ts) localStorage.setItem(LS_TIMESTAMP, ts);
+  } catch(e) { console.warn('localStorage write failed:', e); }
+}
+
+function mergeResults(base, extras) {
+  const merged = [...base];
+  for (const item of extras) {
+    const already = merged.some(r =>
+      norm(r.home) === norm(item.home) && norm(r.away) === norm(item.away)
+    );
+    if (!already) merged.push(item);
+  }
+  return merged;
+}
+
+// ═══════════════════════════════════════════════
+//  BUILD MATCH DATA
+// ═══════════════════════════════════════════════
+function buildMatchData(preds, results) {
+  return preds.map(pred => {
+    const hit = results.find(r =>
+      norm(r.home) === pred.t1 && norm(r.away) === pred.t2
+    );
+    if (hit) {
+      return {...pred, r1:hit.r1, r2:hit.r2, pts:getScore(pred.g1,pred.g2,hit.r1,hit.r2), played:true};
+    }
+    return {...pred, r1:null, r2:null, pts:null, played:false};
+  });
+}
+
+function renderAllTabs() {
+  ['base','conservadora','riesgo'].forEach(k =>
+    renderTab(k, buildMatchData(PREDS[k], liveResults))
+  );
+}
+
+// ═══════════════════════════════════════════════
+//  CHARTS
+// ═══════════════════════════════════════════════
+const charts = {};
+const COLORS = {
+  base:         {line:'#C9973B', fill:'rgba(201,151,59,0.12)'},
+  conservadora: {line:'#007B6E', fill:'rgba(0,123,110,0.12)'},
+  riesgo:       {line:'#C8102E', fill:'rgba(200,16,46,0.12)'}
+};
+
+function renderChart(key, played) {
+  const canvas = document.getElementById(`chart-${key}`);
+  if (!canvas || played.length === 0) return;
+  if (charts[key]) charts[key].destroy();
+  const labels = [], data = [];
+  let cum = 0;
+  for (const m of played) { cum += m.pts; labels.push(`P${m.p}`); data.push(cum); }
+  const c = COLORS[key];
+  charts[key] = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: {labels, datasets:[{
+      label:'Pts acumulados', data, borderColor:c.line, backgroundColor:c.fill,
+      borderWidth:2.5, pointRadius:4, pointBackgroundColor:c.line,
+      pointBorderColor:'#fff', pointBorderWidth:1.5, tension:0.35, fill:true
+    }]},
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{backgroundColor:'#1A1A2E',titleColor:'#fff',bodyColor:'#ccc',
+          padding:10,cornerRadius:8,callbacks:{label:ctx=>` ${ctx.parsed.y} pts`}}
+      },
+      scales:{
+        x:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{color:'#6B7280',font:{size:10},maxTicksLimit:12}},
+        y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{color:'#6B7280',font:{size:10}},min:0}
+      }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════
+//  RENDER TAB
+// ═══════════════════════════════════════════════
+const valClass = {base:'val-gold', conservadora:'val-teal', riesgo:'val-red'};
+
+function fmtDate(iso) {
+  const [,m,d] = iso.split('-');
+  const months = ['','ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  return `${parseInt(d)} ${months[parseInt(m)]}`;
+}
+
+function renderTab(key, matchData) {
+  const sorted   = [...matchData].sort((a,b) => a.f.localeCompare(b.f) || a.p - b.p);
+  const played   = sorted.filter(m => m.played);
+  const totalPts = played.reduce((s,m) => s + m.pts, 0);
+  const maxPts   = played.length * 5;
+  const pct      = maxPts > 0 ? Math.round(totalPts / maxPts * 100) : 0;
+
+  document.getElementById(`pts-${key}`).textContent = `${totalPts} pts`;
+
+  const vc = valClass[key];
+
+  const chartContent = played.length === 0
+    ? '<div class="no-data">Sin partidos terminados — la gráfica aparece aquí</div>'
+    : `<div class="chart-wrap"><canvas id="chart-${key}"></canvas></div>`;
+
+  const rows = sorted.map(m => {
+    const pts = m.played
+      ? (m.pts === 5 ? '<span class="badge badge-5">⭐ 5</span>'
+        : m.pts === 2 ? '<span class="badge badge-2">✓ 2</span>'
+        : '<span class="badge badge-0">✗ 0</span>')
+      : '<span class="badge badge-p">pendiente</span>';
+    const real = m.r1 !== null
+      ? `<span class="score">${m.r1} – ${m.r2}</span>`
+      : `<span style="color:#CBD5E1">—</span>`;
+    return `<tr>
+      <td style="white-space:nowrap;color:var(--muted);font-size:0.75rem">${fmtDate(m.f)}</td>
+      <td><span class="grp">${m.g}</span></td>
+      <td>${m.t1} <span style="color:#CBD5E1">vs</span> ${m.t2}</td>
+      <td>${real}</td>
+      <td><span class="score score-pred">${m.g1} – ${m.g2}</span></td>
+      <td>${pts}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById(`body-${key}`).innerHTML = `
+    <div class="panel-layout">
+      <div class="panel-left">
+        <div class="stat-card card-pts">
+          <div class="stat-label">⭐ Puntos obtenidos</div>
+          <div class="stat-value ${vc}">${totalPts} <span class="unit">/ ${maxPts} pts posibles</span></div>
+          <div class="stat-sub">${played.length} de 72 partidos jugados</div>
+        </div>
+        <div class="stat-card card-pct">
+          <div class="stat-label">📈 Rendimiento</div>
+          <div class="stat-value val-blue">${pct}<span class="unit">%</span></div>
+          <div class="stat-sub">Sobre el máximo alcanzable (${maxPts} pts)</div>
+        </div>
+      </div>
+      <div class="panel-right">
+        <div class="chart-card">
+          <div class="chart-card-title">📊 Puntos acumulados por partido</div>
+          ${chartContent}
+        </div>
+      </div>
+    </div>
+    <div class="table-card">
+      <div class="table-card-title">📋 Predicciones vs Resultados</div>
+      <table>
+        <thead>
+          <tr><th>Fecha</th><th>Grupo</th><th>Partido</th><th>Real</th><th>Predicción</th><th>Pts</th></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+
+  if (played.length > 0) setTimeout(() => renderChart(key, played), 60);
+}
+
+// ═══════════════════════════════════════════════
+//  TAB SWITCHING
+// ═══════════════════════════════════════════════
+function switchTab(key) {
+  ['base','conservadora','riesgo'].forEach(k => {
+    document.getElementById(`panel-${k}`).classList.toggle('active', k === key);
+    const t = document.getElementById(`tab-${k}`);
+    t.className = 'tab' + (k === key ? ` active-${k}` : '');
+  });
+  setTimeout(() => { if (charts[key]) charts[key].resize(); }, 60);
+}
+
+// ═══════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════
+function showToast(msg, duration = 3500) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), duration);
+}
+
+// ═══════════════════════════════════════════════
+//  ACTUALIZAR — consulta /api/scores y persiste en localStorage
+// ═══════════════════════════════════════════════
+async function triggerUpdate() {
+  const btn = document.getElementById('refresh-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Actualizando...';
+  document.getElementById('update-time').textContent = 'Consultando resultados...';
+
+  try {
+    const res = await fetch('/api/scores');
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || `Error ${res.status}`);
+    }
+
+    const { matches, fetchedAt } = await res.json();
+
+    // Identificar qué partidos ya tenemos
+    const knownKeys = new Set(
+      liveResults.map(r => `${norm(r.home)}|${norm(r.away)}`)
+    );
+
+    // Solo agregar los que son nuevos (API ya devuelve únicamente FINISHED)
+    const newOnes = matches.filter(m =>
+      !knownKeys.has(`${norm(m.home)}|${norm(m.away)}`)
+    );
+
+    const ts = new Date(fetchedAt).toLocaleString('es-CO', {
+      timeZone:'America/Bogota', year:'numeric', month:'2-digit', day:'2-digit',
+      hour:'2-digit', minute:'2-digit'
+    });
+
+    if (newOnes.length > 0) {
+      liveResults = mergeResults(liveResults, newOnes);
+      saveToStorage(liveResults, ts);
+      document.getElementById('update-time').textContent = `Datos al: ${ts}`;
+      renderAllTabs();
+      showToast(`✓ ${newOnes.length} partido(s) nuevo(s) actualizado(s)`, 3500);
+    } else {
+      document.getElementById('update-time').textContent = `Datos al: ${ts}`;
+      showToast('✓ Sin nuevos partidos finalizados', 3000);
+    }
+  } catch(e) {
+    const storedTs = localStorage.getItem(LS_TIMESTAMP) || SEED_TIMESTAMP;
+    document.getElementById('update-time').textContent = `Datos al: ${storedTs}`;
+    const msg = e.message.includes('Failed to fetch') || e.message.includes('NetworkError')
+      ? '⚠️ Sin conexión al servidor'
+      : `⚠️ ${e.message}`;
+    showToast(msg, 4500);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '↻ Actualizar';
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  MAIN
+// ═══════════════════════════════════════════════
+function init() {
+  const stored = loadFromStorage();
+  liveResults = mergeResults([...RESULTS_SEED], stored);
+
+  const storedTs = localStorage.getItem(LS_TIMESTAMP);
+  document.getElementById('update-time').textContent = `Datos al: ${storedTs || SEED_TIMESTAMP}`;
+
+  renderAllTabs();
+}
+
+init();
+</script>
+</body>
+</html>
